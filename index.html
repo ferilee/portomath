@@ -1,0 +1,862 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Asesmen Proyek: Math for Portfolio</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap');
+        body { font-family: 'Inter', sans-serif; }
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+        .step-active { border-bottom: 2px solid #4F46E5; color: #4F46E5; }
+        input[type="number"]::-webkit-inner-spin-button,
+        input[type="number"]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+        .print-only { display: none; }
+        
+        /* Lock Screen Styles */
+        #lockScreen {
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: linear-gradient(135deg, #1e1b4b 0%, #312e81 100%);
+            z-index: 9999;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            transition: opacity 0.5s ease-out;
+        }
+        
+        /* Admin Modal */
+        #adminModal {
+            background-color: rgba(0,0,0,0.5);
+            transition: opacity 0.3s;
+        }
+
+        @media print {
+            .no-print { display: none; }
+            #lockScreen, #adminModal { display: none !important; } 
+            .print-only { display: block; }
+            body { background: white; }
+            .card { box-shadow: none; border: 1px solid #ddd; }
+        }
+    </style>
+</head>
+<body class="bg-gray-50 text-gray-800 relative">
+
+    <!-- LOCK SCREEN OVERLAY -->
+    <div id="lockScreen">
+        <div class="text-center p-8 max-w-2xl">
+            <div class="mb-6">
+                <i class="fas fa-clock text-6xl text-indigo-300 animate-pulse"></i>
+            </div>
+            <h1 class="text-3xl md:text-5xl font-bold mb-4">Proyek Belum Dibuka</h1>
+            <p class="text-indigo-200 text-lg mb-8">Akses ke asesmen proyek ini akan dibuka secara otomatis pada:</p>
+            
+            <div class="bg-white/10 backdrop-blur-md rounded-xl p-6 border border-white/20 mb-8">
+                <h2 id="displayTargetDate" class="text-2xl font-semibold text-yellow-300 mb-2">-</h2>
+                <div id="countdownTimer" class="text-4xl md:text-6xl font-mono font-bold tracking-widest mt-4">
+                    --:--:--:--
+                </div>
+                <div class="flex justify-center gap-4 md:gap-8 mt-2 text-xs md:text-sm text-indigo-300 uppercase">
+                    <span class="w-16">Hari</span>
+                    <span class="w-16">Jam</span>
+                    <span class="w-16">Menit</span>
+                    <span class="w-16">Detik</span>
+                </div>
+            </div>
+
+            <div class="flex items-center justify-center gap-4 bg-black/20 p-4 rounded-lg cursor-pointer hover:bg-black/30 transition" onclick="openAdminPanel()">
+                <img src="https://i.ibb.co.com/h1KDN6mV/Ferilee-SIMPEL.png" alt="Pak Feri" class="w-12 h-12 rounded-full border-2 border-indigo-400">
+                <div class="text-left">
+                    <p class="text-sm font-semibold text-white">Guru Pengampu</p>
+                    <p class="text-xs text-indigo-300">Pak Feri Dwi Hermawan</p>
+                </div>
+            </div>
+            <p class="text-xs text-indigo-400 mt-2 opacity-50">(Klik foto untuk Pengaturan Guru)</p>
+        </div>
+    </div>
+
+    <!-- ADMIN MODAL -->
+    <div id="adminModal" class="fixed inset-0 z-[10000] hidden flex items-center justify-center p-4">
+        <div class="bg-white rounded-lg shadow-xl max-w-lg w-full p-6 transform transition-all">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-lg font-bold text-gray-900">⚙️ Pengaturan Guru</h3>
+                <button onclick="closeAdminPanel()" class="text-gray-400 hover:text-gray-500">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            
+            <div id="adminLogin" class="space-y-4">
+                <p class="text-sm text-gray-600">Masukkan kata sandi untuk mengubah pengaturan proyek.</p>
+                <input type="password" id="adminPassword" class="w-full border rounded p-2" placeholder="Kata Sandi">
+                <button onclick="checkAdminPassword()" class="w-full bg-indigo-600 text-white rounded p-2 hover:bg-indigo-700">Masuk</button>
+            </div>
+
+            <div id="adminContent" class="hidden space-y-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700">Tanggal & Jam Buka Proyek</label>
+                    <input type="datetime-local" id="adminDateInput" class="mt-1 block w-full border-gray-300 rounded-md shadow-sm border p-2">
+                    <p class="text-xs text-gray-500 mt-1">*Pengaturan ini disimpan di Browser ini (LocalStorage).</p>
+                </div>
+                
+                <div class="border-t pt-4">
+                    <label class="block text-sm font-medium text-gray-700">URL Google Apps Script (Web App)</label>
+                    <input type="text" id="adminScriptUrl" class="mt-1 block w-full border-gray-300 rounded-md shadow-sm border p-2 text-xs font-mono" placeholder="https://script.google.com/macros/s/.../exec">
+                    <p class="text-xs text-gray-500 mt-1">Pastikan URL berakhiran <strong>/exec</strong>.</p>
+                </div>
+
+                <div class="bg-red-50 p-3 rounded text-xs text-red-800 font-mono overflow-x-auto border border-red-200">
+                    <strong>⚠️ WAJIB DIPERHATIKAN SAAT DEPLOY:</strong><br>
+                    1. Salin kode di bawah ke Apps Script.<br>
+                    2. Klik <strong>Deploy</strong> > <strong>New Deployment</strong>.<br>
+                    3. Configuration:<br>
+                       - Execute as: <strong>Me (Saya)</strong><br>
+                       - Who has access: <strong>Anyone (Siapa Saja)</strong> <span class="font-bold underline">(*PENTING*)</span><br>
+                    4. Klik Deploy. Copy URL baru.
+                </div>
+                
+                <details class="text-xs cursor-pointer">
+                    <summary class="text-indigo-600 font-semibold mb-1">Salin Kode Apps Script (Versi Stabil)</summary>
+                    <pre class="bg-gray-800 text-green-400 p-2 rounded overflow-auto h-32 select-all">
+function doGet(e) {
+  return ContentService.createTextOutput("Server Aktif.");
+}
+
+function doPost(e) {
+  var sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
+  
+  // Ambil data dari parameter 'payload' (FormData)
+  var dataStr = e.parameter.payload;
+  if (!dataStr && e.postData) {
+     // Fallback jika dikirim sebagai raw body
+     dataStr = e.postData.contents;
+  }
+  
+  var data = JSON.parse(dataStr);
+
+  // Header check
+  var headers = ["Timestamp", "Nama", "Judul", "Matriks_Skor", "Barisan_Model", "Barisan_U5", "Barisan_S5", "Keuangan_Tipe", "Keuangan_Hasil"];
+  if (sheet.getLastRow() === 0) {
+    sheet.appendRow(headers);
+  }
+
+  sheet.appendRow([
+    new Date(),
+    data.nama,
+    data.judul,
+    data.matriks_res,
+    data.barisan_model,
+    data.barisan_u5,
+    data.barisan_s5,
+    data.keuangan_tipe,
+    data.keuangan_hasil
+  ]);
+
+  return ContentService.createTextOutput(JSON.stringify({result: 'success'}))
+    .setMimeType(ContentService.MimeType.JSON);
+}
+                    </pre>
+                </details>
+
+                <div class="flex justify-end pt-2">
+                    <button onclick="saveAdminSettings()" class="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700">Simpan Pengaturan</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- MAIN CONTENT -->
+    <div id="mainApp">
+        <!-- Navbar -->
+        <nav class="bg-white shadow-sm sticky top-0 z-50 no-print">
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                <div class="flex justify-between h-20">
+                    <div class="flex items-center">
+                        <i class="fas fa-code text-indigo-600 text-2xl mr-3"></i>
+                        <div>
+                            <span class="font-bold text-xl text-gray-900 block">Asesmen Proyek</span>
+                            <span class="text-xs text-indigo-600 font-medium">Smart Portfolio: Media Digital Kompetensi Diri</span>
+                        </div>
+                    </div>
+                    <!-- Guru Profile in Navbar -->
+                    <div class="flex items-center pl-4 border-l ml-4 my-2 cursor-pointer" onclick="openAdminPanel()">
+                        <div class="text-right mr-3 hidden md:block">
+                            <p class="text-sm font-bold text-gray-800">Pak Feri Dwi Hermawan</p>
+                            <p class="text-xs text-gray-500">Guru Matematika</p>
+                        </div>
+                        <img src="https://i.ibb.co.com/h1KDN6mV/Ferilee-SIMPEL.png" class="w-10 h-10 rounded-full border border-gray-200 object-cover" alt="Guru">
+                    </div>
+                </div>
+            </div>
+        </nav>
+
+        <div class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+
+            <!-- Student Info Header -->
+            <div class="bg-white rounded-lg shadow p-6 mb-6 border-l-4 border-indigo-500 card">
+                <h2 class="text-lg font-semibold mb-4">Identitas Siswa</h2>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6"> 
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Nama Lengkap</label>
+                        <select id="studentName" class="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm border p-2 bg-white">
+                            <option value="">-- Pilih Nama Anda --</option>
+                            <option>ADINDA ANEZTYA ZAHRA</option>
+                            <option>AUGUSTAV BRILLYAN SINDUARTHA</option>
+                            <option>AULIA AZZARA NUR RAMDANI</option>
+                            <option>AYU DWI HANAFI</option>
+                            <option>BRIANDA WISNU YUSENA</option>
+                            <option>CHIKA AFINSA RAMADHANI</option>
+                            <option>DINDA MAI SAFIRA</option>
+                            <option>FARHAN DHIYA'UL HAQ</option>
+                            <option>FIRDAUS ZIDDAN AZZAINURI</option>
+                            <option>MARVELINO ALFRADO</option>
+                            <option>MUHAMMAD EDI SANTOSO</option>
+                            <option>MUHAMMAD HATTA PRIMA NURRAHMAN</option>
+                            <option>MUHAMMAD IRFAN KHOIRUL HIDAYAH</option>
+                            <option>NABILA NUR AZIZAH</option>
+                            <option>NUR RAHMAD HIDAYAT</option>
+                            <option>PUTRA PUGUH PRADANA</option>
+                            <option>RAFAEL ONIL MULYA PUTRA</option>
+                            <option>RAFI ARDIANSYAH EGI RAMADHAN</option>
+                            <option>RENO FIRMANSYAH</option>
+                            <option>REYHAN ALIF RAMADHAN</option>
+                            <option>RISQI ADITYA</option>
+                            <option>SALSAHIRA DUWI APRILIA</option>
+                            <option>VALENTINO AFASHA SALEH</option>
+                            <option>WAHYU EKA ADI PRATAMA</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Judul Proyek Portofolio</label>
+                        <input type="text" id="projectTitle" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm border p-2" placeholder="Contoh: My Dev Journey">
+                    </div>
+                </div>
+            </div>
+
+            <!-- Progress Tabs -->
+            <div class="border-b border-gray-200 mb-6 no-print">
+                <nav class="-mb-px flex space-x-8 overflow-x-auto" aria-label="Tabs">
+                    <button onclick="switchTab('intro')" id="tab-intro" class="step-active whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm">
+                        1. Pengantar
+                    </button>
+                    <button onclick="switchTab('matrix')" id="tab-matrix" class="whitespace-nowrap py-4 px-1 border-b-2 border-transparent font-medium text-sm text-gray-500 hover:text-gray-700 hover:border-gray-300">
+                        2. Matriks Kompetensi
+                    </button>
+                    <button onclick="switchTab('series')" id="tab-series" class="whitespace-nowrap py-4 px-1 border-b-2 border-transparent font-medium text-sm text-gray-500 hover:text-gray-700 hover:border-gray-300">
+                        3. Proyeksi Karir
+                    </button>
+                    <button onclick="switchTab('finance')" id="tab-finance" class="whitespace-nowrap py-4 px-1 border-b-2 border-transparent font-medium text-sm text-gray-500 hover:text-gray-700 hover:border-gray-300">
+                        4. Finansial
+                    </button>
+                    <button onclick="switchTab('finish')" id="tab-finish" class="whitespace-nowrap py-4 px-1 border-b-2 border-transparent font-medium text-sm text-gray-500 hover:text-gray-700 hover:border-gray-300">
+                        5. Finalisasi
+                    </button>
+                </nav>
+            </div>
+
+            <!-- Content Area -->
+            
+            <!-- 1. Intro Section -->
+            <div id="intro" class="tab-content active space-y-6">
+                <div class="bg-indigo-50 border border-indigo-200 rounded-lg p-6">
+                    <h3 class="text-xl font-bold text-indigo-900 mb-2">👋 Selamat Datang, Developer Muda!</h3>
+                    <p class="text-indigo-800">
+                        Platform ini adalah "Blueprint" untuk Proyek Website Portofolio kamu. Sebelum kamu menulis kode JavaScript di websitemu, kamu harus merencanakan logika matematikanya di sini.
+                    </p>
+                    <ul class="list-disc list-inside mt-4 text-indigo-800 space-y-2">
+                        <li><strong>Misi 1:</strong> Gunakan Matriks untuk menghitung skor kompetensi.</li>
+                        <li><strong>Misi 2:</strong> Gunakan Barisan/Deret untuk memprediksi pertumbuhan jumlah proyekmu.</li>
+                        <li><strong>Misi 3:</strong> Gunakan Bunga Majemuk/Anuitas untuk merencanakan pembelian alat atau pinjaman modal.</li>
+                    </ul>
+                </div>
+                <div class="flex justify-end">
+                    <button onclick="switchTab('matrix')" class="bg-indigo-600 text-white px-6 py-2 rounded-md hover:bg-indigo-700">Mulai Misi 1 <i class="fas fa-arrow-right ml-2"></i></button>
+                </div>
+            </div>
+
+            <!-- 2. Matrix Section -->
+            <div id="matrix" class="tab-content space-y-6">
+                <div class="bg-white rounded-lg shadow p-6 border border-gray-200">
+                    <h3 class="text-lg font-bold mb-4 flex items-center"><i class="fas fa-th text-indigo-500 mr-2"></i> Matriks Penilaian Kompetensi</h3>
+                    <p class="text-gray-600 text-sm mb-4">
+                        Bayangkan kamu menilai 3 proyek (atau 3 anggota tim) berdasarkan 4 skill (HTML, CSS, JS, SQL). <br>
+                        <strong>Matriks A (3x4):</strong> Skor (1-10). <strong>Matriks B (4x1):</strong> Bobot (0.1 - 1.0).
+                    </p>
+
+                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                        <!-- Matrix A Input -->
+                        <div>
+                            <h4 class="font-semibold text-sm text-gray-700 mb-2 text-center">Matriks A (Skor Skill)</h4>
+                            <div class="grid grid-cols-4 gap-2 mb-2 text-center text-xs font-bold text-gray-500">
+                                <div>HTML</div><div>CSS</div><div>JS</div><div>SQL</div>
+                            </div>
+                            <div id="matrixA-inputs" class="grid grid-cols-4 gap-2">
+                                <!-- JS Generated Inputs -->
+                            </div>
+                            <div class="mt-2 text-xs text-gray-400 text-center">Baris = Proyek 1, 2, 3</div>
+                        </div>
+
+                        <!-- Matrix B Input -->
+                        <div>
+                            <h4 class="font-semibold text-sm text-gray-700 mb-2 text-center">Matriks B (Bobot)</h4>
+                            <div class="w-1/2 mx-auto">
+                                <div id="matrixB-inputs" class="grid grid-cols-1 gap-2">
+                                    <!-- JS Generated Inputs -->
+                                </div>
+                            </div>
+                            <div class="mt-2 text-xs text-gray-400 text-center">Total bobot disarankan = 1.0</div>
+                        </div>
+                    </div>
+
+                    <div class="mt-6 flex justify-center">
+                        <button onclick="calculateMatrix()" class="bg-green-600 text-white px-4 py-2 rounded shadow hover:bg-green-700">
+                            <i class="fas fa-calculator mr-1"></i> Hitung Hasil (A x B)
+                        </button>
+                    </div>
+
+                    <!-- Result -->
+                    <div id="matrixResult" class="mt-6 hidden bg-gray-50 p-4 rounded border border-gray-200">
+                        <h4 class="font-semibold text-sm text-gray-700 mb-2">Hasil Perhitungan (Matriks C):</h4>
+                        <p class="text-xs text-gray-500 mb-2">Ini adalah skor akhir untuk setiap Proyek/Orang.</p>
+                        <div id="matrixOutput" class="font-mono text-lg font-bold text-indigo-700"></div>
+                        
+                        <div class="mt-4">
+                            <label class="block text-sm font-medium text-gray-700">Analisis Data:</label>
+                            <textarea id="matrixAnalysis" rows="2" class="mt-1 block w-full rounded-md border border-gray-300 p-2 text-sm" placeholder="Contoh: Proyek 1 memiliki skor tertinggi karena unggul di skill JavaScript yang bobotnya besar..."></textarea>
+                        </div>
+                    </div>
+                </div>
+                <div class="flex justify-between">
+                    <button onclick="switchTab('intro')" class="text-gray-500 hover:text-gray-700">Kembali</button>
+                    <button onclick="switchTab('series')" class="bg-indigo-600 text-white px-6 py-2 rounded-md hover:bg-indigo-700">Lanjut Misi 2 <i class="fas fa-arrow-right ml-2"></i></button>
+                </div>
+            </div>
+
+            <!-- 3. Series Section -->
+            <div id="series" class="tab-content space-y-6">
+                <div class="bg-white rounded-lg shadow p-6 border border-gray-200">
+                    <h3 class="text-lg font-bold mb-4 flex items-center"><i class="fas fa-chart-line text-indigo-500 mr-2"></i> Proyeksi Pertumbuhan Karir</h3>
+                    <p class="text-gray-600 text-sm mb-4">
+                        Gunakan Barisan Aritmatika atau Geometri untuk memprediksi jumlah proyek/klien kamu dalam 5 tahun ke depan.
+                    </p>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700">Pilih Model Pertumbuhan</label>
+                            <select id="seriesType" onchange="updateSeriesLabel()" class="mt-1 block w-full rounded-md border border-gray-300 p-2">
+                                <option value="arithmetic">Barisan Aritmatika (Penambahan Tetap)</option>
+                                <option value="geometric">Barisan Geometri (Perkalian/Persentase)</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700">Tahun Pertama (a / U1)</label>
+                            <input type="number" id="seriesA" class="mt-1 block w-full rounded-md border border-gray-300 p-2" placeholder="Jumlah proyek tahun ke-1">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700" id="labelDiff">Beda (b)</label>
+                            <input type="number" id="seriesDiff" class="mt-1 block w-full rounded-md border border-gray-300 p-2" placeholder="Penambahan per tahun">
+                            <p class="text-xs text-gray-400 mt-1" id="hintDiff">Jumlah proyek bertambah X setiap tahun.</p>
+                        </div>
+                        <div class="flex items-end">
+                            <button onclick="calculateSeries()" class="w-full bg-green-600 text-white px-4 py-2 rounded shadow hover:bg-green-700">
+                                <i class="fas fa-calculator mr-1"></i> Proyeksikan
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Result -->
+                    <div id="seriesResult" class="mt-6 hidden">
+                        <div class="bg-indigo-50 p-4 rounded border border-indigo-100 mb-4">
+                            <div class="grid grid-cols-2 gap-4 text-center">
+                                <div>
+                                    <p class="text-xs text-gray-500">Jumlah Proyek Tahun ke-5 (U5)</p>
+                                    <p class="text-2xl font-bold text-indigo-700" id="valU5">-</p>
+                                </div>
+                                <div>
+                                    <p class="text-xs text-gray-500">Total Proyek Selama 5 Tahun (S5)</p>
+                                    <p class="text-2xl font-bold text-indigo-700" id="valS5">-</p>
+                                </div>
+                            </div>
+                        </div>
+                        <label class="block text-sm font-medium text-gray-700">Mengapa memilih pola ini?</label>
+                        <textarea id="seriesReason" rows="2" class="mt-1 block w-full rounded-md border border-gray-300 p-2 text-sm" placeholder="Contoh: Saya memilih Geometri karena di dunia tech pertumbuhan seringkali eksponensial..."></textarea>
+                    </div>
+                </div>
+                <div class="flex justify-between">
+                    <button onclick="switchTab('matrix')" class="text-gray-500 hover:text-gray-700">Kembali</button>
+                    <button onclick="switchTab('finance')" class="bg-indigo-600 text-white px-6 py-2 rounded-md hover:bg-indigo-700">Lanjut Misi 3 <i class="fas fa-arrow-right ml-2"></i></button>
+                </div>
+            </div>
+
+            <!-- 4. Finance Section -->
+            <div id="finance" class="tab-content space-y-6">
+                <div class="bg-white rounded-lg shadow p-6 border border-gray-200">
+                    <h3 class="text-lg font-bold mb-4 flex items-center"><i class="fas fa-coins text-indigo-500 mr-2"></i> Perencanaan Keuangan</h3>
+                    
+                    <div class="mb-4">
+                        <div class="flex space-x-4">
+                            <label class="inline-flex items-center">
+                                <input type="radio" class="form-radio text-indigo-600" name="financeType" value="compound" checked onchange="toggleFinanceForm()">
+                                <span class="ml-2">Investasi Alat (Bunga Majemuk)</span>
+                            </label>
+                            <label class="inline-flex items-center">
+                                <input type="radio" class="form-radio text-indigo-600" name="financeType" value="annuity" onchange="toggleFinanceForm()">
+                                <span class="ml-2">Pinjaman Modal (Anuitas)</span>
+                            </label>
+                        </div>
+                    </div>
+
+                    <!-- Form Investasi -->
+                    <div id="compoundForm" class="space-y-4">
+                        <p class="text-sm text-gray-600 bg-yellow-50 p-2 rounded">
+                            <strong>Skenario:</strong> Kamu ingin membeli Macbook Pro seharga Rp 30.000.000 dalam 5 tahun. Berapa yang harus kamu tabung sekarang (single deposit) jika bunga bank 5% per tahun?
+                        </p>
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700">Target Dana (Mn)</label>
+                                <input type="number" id="compTarget" class="mt-1 block w-full border border-gray-300 rounded p-2" value="30000000">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700">Bunga per tahun (%)</label>
+                                <input type="number" id="compRate" class="mt-1 block w-full border border-gray-300 rounded p-2" value="5">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700">Periode (Tahun)</label>
+                                <input type="number" id="compPeriod" class="mt-1 block w-full border border-gray-300 rounded p-2" value="5">
+                            </div>
+                        </div>
+                        <button onclick="calculateCompound()" class="bg-green-600 text-white px-4 py-2 rounded shadow hover:bg-green-700 w-full sm:w-auto">Hitung Modal Awal (M0)</button>
+                    </div>
+
+                    <!-- Form Anuitas -->
+                    <div id="annuityForm" class="space-y-4 hidden">
+                        <p class="text-sm text-gray-600 bg-yellow-50 p-2 rounded">
+                            <strong>Skenario:</strong> Kamu meminjam Rp 10.000.000 untuk modal *startup*. Berapa cicilan per bulan jika bunga 1% per bulan selama 2 tahun?
+                        </p>
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700">Jumlah Pinjaman (M)</label>
+                                <input type="number" id="annLoan" class="mt-1 block w-full border border-gray-300 rounded p-2" value="10000000">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700">Bunga per bulan (%)</label>
+                                <input type="number" id="annRate" class="mt-1 block w-full border border-gray-300 rounded p-2" value="1">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700">Periode (Bulan)</label>
+                                <input type="number" id="annPeriod" class="mt-1 block w-full border border-gray-300 rounded p-2" value="24">
+                            </div>
+                        </div>
+                        <button onclick="calculateAnnuity()" class="bg-green-600 text-white px-4 py-2 rounded shadow hover:bg-green-700 w-full sm:w-auto">Hitung Cicilan (A)</button>
+                    </div>
+
+                    <!-- Result -->
+                    <div id="financeResult" class="mt-6 hidden bg-green-50 border border-green-200 p-4 rounded text-center">
+                        <p class="text-sm text-gray-600 mb-1" id="finResLabel">Hasil Perhitungan</p>
+                        <p class="text-3xl font-bold text-green-700" id="finResValue">Rp 0</p>
+                        <p class="text-xs text-gray-500 mt-2" id="finFormulaDisplay">Rumus: ...</p>
+                    </div>
+                </div>
+                <div class="flex justify-between">
+                    <button onclick="switchTab('series')" class="text-gray-500 hover:text-gray-700">Kembali</button>
+                    <button onclick="switchTab('finish')" onclick="generateSummary()" class="bg-indigo-600 text-white px-6 py-2 rounded-md hover:bg-indigo-700">Finalisasi <i class="fas fa-check ml-2"></i></button>
+                </div>
+            </div>
+
+            <!-- 5. Finish Section -->
+            <div id="finish" class="tab-content space-y-6">
+                <div class="bg-white rounded-lg shadow p-8 border-t-4 border-green-500 text-center no-print">
+                    <h2 class="text-2xl font-bold text-gray-800 mb-2">Kerja Bagus! 🎉</h2>
+                    <p class="text-gray-600 mb-6">
+                        Kamu telah menyelesaikan simulasi perhitungan matematika untuk portofolio kamu.
+                        Silakan review ringkasan di bawah ini.
+                    </p>
+                    <div class="flex justify-center gap-4">
+                        <button onclick="window.print()" class="bg-gray-800 text-white px-6 py-3 rounded-lg hover:bg-black shadow-lg transition transform hover:scale-105">
+                            <i class="fas fa-print mr-2"></i> Cetak / PDF
+                        </button>
+                        <button onclick="submitToGoogleSheets()" class="bg-green-600 text-white px-6 py-3 rounded-lg hover:bg-green-700 shadow-lg transition transform hover:scale-105">
+                            <i class="fas fa-cloud-upload-alt mr-2"></i> Kirim ke Guru
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Printable Report -->
+                <div id="printableReport" class="bg-white p-8 border border-gray-300 rounded shadow-none">
+                    <div class="text-center border-b pb-4 mb-4">
+                        <div class="flex justify-center mb-2">
+                             <img src="https://i.ibb.co.com/h1KDN6mV/Ferilee-SIMPEL.png" class="w-16 h-16 rounded-full border border-gray-300">
+                        </div>
+                        <h1 class="text-2xl font-bold uppercase tracking-wide text-gray-800">Laporan Proyek Matematika</h1>
+                        <p class="text-sm text-gray-500">Integrasi Portofolio Digital & Matematika</p>
+                    </div>
+
+                    <div class="mb-6">
+                        <h3 class="font-bold text-gray-700 border-b mb-2">I. Identitas</h3>
+                        <p><strong>Nama:</strong> <span id="reportName">-</span></p>
+                        <p><strong>Judul Proyek:</strong> <span id="reportTitle">-</span></p>
+                    </div>
+
+                    <div class="mb-6">
+                        <h3 class="font-bold text-gray-700 border-b mb-2">II. Analisis Kompetensi (Matriks)</h3>
+                        <p><strong>Hasil Perkalian Matriks (Skor Akhir):</strong></p>
+                        <div id="reportMatrixRes" class="font-mono text-sm bg-gray-100 p-2 rounded mb-2">-</div>
+                        <p><strong>Analisis:</strong> <span id="reportMatrixAnal" class="italic text-gray-600">-</span></p>
+                    </div>
+
+                    <div class="mb-6">
+                        <h3 class="font-bold text-gray-700 border-b mb-2">III. Pertumbuhan Karir (Barisan & Deret)</h3>
+                        <p><strong>Model:</strong> <span id="reportSeriesType">-</span></p>
+                        <p><strong>Parameter:</strong> a = <span id="reportSeriesA">-</span>, b/r = <span id="reportSeriesB">-</span></p>
+                        <p><strong>Prediksi Tahun ke-5 (U5):</strong> <span id="reportU5">-</span></p>
+                        <p><strong>Total 5 Tahun (S5):</strong> <span id="reportS5">-</span></p>
+                        <p><strong>Alasan:</strong> <span id="reportSeriesReason" class="italic text-gray-600">-</span></p>
+                    </div>
+
+                    <div class="mb-6">
+                        <h3 class="font-bold text-gray-700 border-b mb-2">IV. Perencanaan Keuangan</h3>
+                        <p><strong>Jenis:</strong> <span id="reportFinType">-</span></p>
+                        <p><strong>Hasil Perhitungan:</strong> <span id="reportFinVal" class="font-bold">-</span></p>
+                        <p><strong>Catatan Rumus:</strong> <span id="reportFinFormula" class="text-xs font-mono">-</span></p>
+                    </div>
+
+                    <div class="mt-8 pt-4 border-t border-gray-200 flex justify-between text-xs text-gray-400">
+                        <p>Generated by Smart Portfolio System</p>
+                        <p>Guru Pengampu: Pak Feri Dwi Hermawan</p>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <script>
+        // --- ADMIN & STORAGE LOGIC ---
+        // Defaults
+        const DEFAULT_DATE = 'December 3, 2025 07:00:00';
+        const DEFAULT_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzGfkm3hQm8z9VjEgFw-HhRkSV37k43tY39hoRl8Sjcxf2UW8H5cG5UBiHaNu9AYyUJ/exec';
+        const PASSWORD_HASH = 'Ferilee'; // Simple check for this context
+
+        function openAdminPanel() {
+            document.getElementById('adminModal').classList.remove('hidden');
+        }
+
+        function closeAdminPanel() {
+            document.getElementById('adminModal').classList.add('hidden');
+            document.getElementById('adminContent').classList.add('hidden');
+            document.getElementById('adminLogin').classList.remove('hidden');
+            document.getElementById('adminPassword').value = '';
+        }
+
+        function checkAdminPassword() {
+            const pwd = document.getElementById('adminPassword').value;
+            if(pwd === PASSWORD_HASH) {
+                document.getElementById('adminLogin').classList.add('hidden');
+                document.getElementById('adminContent').classList.remove('hidden');
+                loadAdminSettings();
+            } else {
+                alert('Kata sandi salah!');
+            }
+        }
+
+        function loadAdminSettings() {
+            const savedDate = localStorage.getItem('unlockDate');
+            const savedUrl = localStorage.getItem('sheetUrl');
+            
+            // Format date for datetime-local input (YYYY-MM-DDTHH:MM)
+            let d = savedDate ? new Date(savedDate) : new Date(DEFAULT_DATE);
+            d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
+            document.getElementById('adminDateInput').value = d.toISOString().slice(0,16);
+            
+            if(savedUrl) {
+                document.getElementById('adminScriptUrl').value = savedUrl;
+            } else {
+                document.getElementById('adminScriptUrl').value = DEFAULT_SCRIPT_URL;
+            }
+        }
+
+        function saveAdminSettings() {
+            const newDate = document.getElementById('adminDateInput').value;
+            const newUrl = document.getElementById('adminScriptUrl').value;
+            
+            if(newDate) {
+                localStorage.setItem('unlockDate', new Date(newDate).toString());
+                alert('Pengaturan Tersimpan!\nHalaman akan dimuat ulang untuk menerapkan tanggal baru.');
+                window.location.reload();
+            }
+            if(newUrl) {
+                localStorage.setItem('sheetUrl', newUrl);
+                alert('URL Web App Disimpan!');
+            }
+        }
+
+        function submitToGoogleSheets() {
+            // Use local storage URL if available, otherwise use default hardcoded URL
+            const url = localStorage.getItem('sheetUrl') || DEFAULT_SCRIPT_URL;
+            
+            if(!url) {
+                alert('Mohon maaf, Guru belum mengkonfigurasi URL Penyimpanan (Google Sheets).\nSilakan simpan sebagai PDF saja atau hubungi Guru.');
+                return;
+            }
+
+            if (!url.includes('/exec')) {
+                alert('URL Web App sepertinya salah. URL harus berakhiran "/exec". Silakan cek di menu Admin Guru.');
+                return;
+            }
+
+            const data = {
+                nama: document.getElementById('studentName').value,
+                judul: document.getElementById('projectTitle').value,
+                matriks_res: document.getElementById('reportMatrixRes').innerText,
+                barisan_model: document.getElementById('reportSeriesType').innerText,
+                barisan_u5: document.getElementById('reportU5').innerText,
+                barisan_s5: document.getElementById('reportS5').innerText,
+                keuangan_tipe: document.getElementById('reportFinType').innerText,
+                keuangan_hasil: document.getElementById('reportFinVal').innerText
+            };
+
+            if(!data.nama) { alert('Harap pilih Nama Siswa terlebih dahulu.'); return; }
+
+            const btn = event.target;
+            const originalText = btn.innerHTML;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Mengirim...';
+            btn.disabled = true;
+
+            // USE FORMDATA (Most robust way to avoid CORS issues in GAS)
+            const formData = new FormData();
+            formData.append('payload', JSON.stringify(data));
+
+            fetch(url, {
+                method: 'POST',
+                mode: 'no-cors',
+                body: formData
+            }).then(() => {
+                alert('Data berhasil dikirim ke Guru! ✅');
+                btn.innerHTML = originalText;
+                btn.disabled = false;
+            }).catch(err => {
+                alert('Gagal mengirim data. Pastikan koneksi internet lancar dan URL Web App benar.');
+                console.error(err);
+                btn.innerHTML = originalText;
+                btn.disabled = false;
+            });
+        }
+
+        // --- COUNTDOWN LOGIC ---
+        const savedDate = localStorage.getItem('unlockDate');
+        const targetDateStr = savedDate ? savedDate : DEFAULT_DATE;
+        const targetDate = new Date(targetDateStr).getTime();
+        
+        // Display formatted date
+        const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' };
+        document.getElementById('displayTargetDate').innerText = new Date(targetDateStr).toLocaleDateString('id-ID', options) + ' WIB';
+
+        const timerInterval = setInterval(function() {
+            const now = new Date().getTime();
+            const distance = targetDate - now;
+
+            if (distance < 0) {
+                // UNLOCK
+                clearInterval(timerInterval);
+                document.getElementById("lockScreen").style.opacity = "0";
+                setTimeout(() => {
+                    document.getElementById("lockScreen").style.display = "none";
+                }, 500);
+            } else {
+                // COUNTDOWN
+                const days = Math.floor(distance / (1000 * 60 * 60 * 24));
+                const hours = Math.floor((distance % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+                const minutes = Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60));
+                const seconds = Math.floor((distance % (1000 * 60)) / 1000);
+
+                document.getElementById("countdownTimer").innerHTML = 
+                    (days < 10 ? "0" + days : days) + ":" + 
+                    (hours < 10 ? "0" + hours : hours) + ":" + 
+                    (minutes < 10 ? "0" + minutes : minutes) + ":" + 
+                    (seconds < 10 ? "0" + seconds : seconds);
+            }
+        }, 1000);
+
+        // --- EXISTING LOGIC ---
+        // Init Inputs
+        document.addEventListener('DOMContentLoaded', () => {
+            initMatrixInputs();
+        });
+
+        // Tab Switching
+        function switchTab(tabId) {
+            document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+            document.getElementById(tabId).classList.add('active');
+            
+            // Update nav style
+            const tabs = ['intro', 'matrix', 'series', 'finance', 'finish'];
+            tabs.forEach(t => {
+                const btn = document.getElementById('tab-' + t);
+                if(t === tabId) {
+                    btn.className = "step-active whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm text-indigo-600";
+                } else {
+                    btn.className = "whitespace-nowrap py-4 px-1 border-b-2 border-transparent font-medium text-sm text-gray-500 hover:text-gray-700";
+                }
+            });
+
+            if(tabId === 'finish') updateReport();
+        }
+
+        // --- MATRIX LOGIC ---
+        function initMatrixInputs() {
+            const containerA = document.getElementById('matrixA-inputs');
+            const containerB = document.getElementById('matrixB-inputs');
+            
+            // Generate Matrix A (3x4)
+            for(let i=0; i<12; i++) {
+                containerA.innerHTML += `<input type="number" min="1" max="10" class="border p-1 text-center text-sm rounded matrix-a-val" value="${Math.floor(Math.random()*5)+5}">`;
+            }
+
+            // Generate Matrix B (4x1)
+            const weights = [0.3, 0.3, 0.2, 0.2];
+            for(let i=0; i<4; i++) {
+                containerB.innerHTML += `<div class="flex items-center space-x-2"><span class="text-xs w-8">W${i+1}</span><input type="number" step="0.1" min="0" max="1" class="border p-1 text-center text-sm rounded w-full matrix-b-val" value="${weights[i]}"></div>`;
+            }
+        }
+
+        function calculateMatrix() {
+            const inputsA = Array.from(document.querySelectorAll('.matrix-a-val')).map(i => parseFloat(i.value) || 0);
+            const inputsB = Array.from(document.querySelectorAll('.matrix-b-val')).map(i => parseFloat(i.value) || 0);
+            
+            let resultHTML = "<table class='min-w-full text-sm text-left text-gray-500'><thead class='text-xs text-gray-700 uppercase bg-gray-100'><tr><th>Entitas</th><th>Total Skor</th></tr></thead><tbody>";
+            
+            let results = [];
+
+            for(let row=0; row<3; row++) {
+                let sum = 0;
+                for(let col=0; col<4; col++) {
+                    let valA = inputsA[(row * 4) + col];
+                    let valB = inputsB[col];
+                    sum += valA * valB;
+                }
+                results.push(sum.toFixed(2));
+                resultHTML += `<tr class='bg-white border-b'><td class='py-2 font-medium text-gray-900'>Proyek/Org ${row+1}</td><td class='py-2'>${sum.toFixed(2)}</td></tr>`;
+            }
+            resultHTML += "</tbody></table>";
+
+            document.getElementById('matrixOutput').innerHTML = resultHTML;
+            document.getElementById('matrixResult').classList.remove('hidden');
+        }
+
+        // --- SERIES LOGIC ---
+        function updateSeriesLabel() {
+            const type = document.getElementById('seriesType').value;
+            const label = document.getElementById('labelDiff');
+            const hint = document.getElementById('hintDiff');
+            
+            if(type === 'arithmetic') {
+                label.innerText = "Beda (b)";
+                hint.innerText = "Penambahan jumlah tetap per tahun (misal: +2)";
+            } else {
+                label.innerText = "Rasio (r)";
+                hint.innerText = "Faktor pengali per tahun (misal: 1.5 untuk naik 50%)";
+            }
+        }
+
+        function calculateSeries() {
+            const type = document.getElementById('seriesType').value;
+            const a = parseFloat(document.getElementById('seriesA').value) || 0;
+            const b = parseFloat(document.getElementById('seriesDiff').value) || 0;
+            
+            let u5, s5;
+
+            if(type === 'arithmetic') {
+                // Un = a + (n-1)b
+                u5 = a + (4 * b);
+                // Sn = n/2 (2a + (n-1)b)
+                s5 = (5/2) * ((2*a) + (4*b));
+            } else {
+                // Un = a * r^(n-1)
+                u5 = a * Math.pow(b, 4);
+                // Sn = a(r^n - 1) / (r-1)
+                if(b === 1) s5 = a * 5;
+                else s5 = (a * (Math.pow(b, 5) - 1)) / (b - 1);
+            }
+
+            document.getElementById('valU5').innerText = Math.round(u5);
+            document.getElementById('valS5').innerText = Math.round(s5);
+            document.getElementById('seriesResult').classList.remove('hidden');
+        }
+
+        // --- FINANCE LOGIC ---
+        function toggleFinanceForm() {
+            const type = document.querySelector('input[name="financeType"]:checked').value;
+            if(type === 'compound') {
+                document.getElementById('compoundForm').classList.remove('hidden');
+                document.getElementById('annuityForm').classList.add('hidden');
+            } else {
+                document.getElementById('compoundForm').classList.add('hidden');
+                document.getElementById('annuityForm').classList.remove('hidden');
+            }
+            document.getElementById('financeResult').classList.add('hidden');
+        }
+
+        function calculateCompound() {
+            const Mn = parseFloat(document.getElementById('compTarget').value);
+            const i = parseFloat(document.getElementById('compRate').value) / 100;
+            const n = parseFloat(document.getElementById('compPeriod').value);
+
+            // Rumus Nilai Tunai: M0 = Mn / (1+i)^n
+            const M0 = Mn / Math.pow((1+i), n);
+            
+            showFinanceResult("Modal Awal yg Harus Disetor (M0)", M0, `M0 = ${Mn} / (1 + ${i})^${n}`);
+        }
+
+        function calculateAnnuity() {
+            const M = parseFloat(document.getElementById('annLoan').value);
+            const i = parseFloat(document.getElementById('annRate').value) / 100;
+            const n = parseFloat(document.getElementById('annPeriod').value);
+
+            // Rumus Anuitas: A = (M * i) / (1 - (1+i)^-n)
+            const numerator = M * i;
+            const denominator = 1 - Math.pow((1+i), -n);
+            const A = numerator / denominator;
+
+            showFinanceResult("Cicilan per Bulan (A)", A, `A = (${M} x ${i}) / (1 - (1+${i})^-${n})`);
+        }
+
+        function showFinanceResult(label, value, formula) {
+            const formatter = new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR' });
+            document.getElementById('finResLabel').innerText = label;
+            document.getElementById('finResValue').innerText = formatter.format(value);
+            document.getElementById('finFormulaDisplay').innerText = formula;
+            document.getElementById('financeResult').classList.remove('hidden');
+        }
+
+        // --- REPORT GENERATION ---
+        function updateReport() {
+            // Identitas
+            document.getElementById('reportName').innerText = document.getElementById('studentName').value || "(Belum dipilih)";
+            document.getElementById('reportTitle').innerText = document.getElementById('projectTitle').value || "(Belum diisi)";
+
+            // Matrix
+            document.getElementById('reportMatrixRes').innerHTML = document.getElementById('matrixOutput').innerHTML || "Belum dihitung";
+            document.getElementById('reportMatrixAnal').innerText = document.getElementById('matrixAnalysis').value || "-";
+
+            // Series
+            const sType = document.getElementById('seriesType').value;
+            document.getElementById('reportSeriesType').innerText = sType === 'arithmetic' ? "Aritmatika" : "Geometri";
+            document.getElementById('reportSeriesA').innerText = document.getElementById('seriesA').value;
+            document.getElementById('reportSeriesB').innerText = document.getElementById('seriesDiff').value;
+            document.getElementById('reportU5').innerText = document.getElementById('valU5').innerText;
+            document.getElementById('reportS5').innerText = document.getElementById('valS5').innerText;
+            document.getElementById('reportSeriesReason').innerText = document.getElementById('seriesReason').value || "-";
+
+            // Finance
+            const fType = document.querySelector('input[name="financeType"]:checked').value;
+            document.getElementById('reportFinType').innerText = fType === 'compound' ? "Investasi (Bunga Majemuk)" : "Pinjaman (Anuitas)";
+            document.getElementById('reportFinVal').innerText = document.getElementById('finResValue').innerText;
+            document.getElementById('reportFinFormula').innerText = document.getElementById('finFormulaDisplay').innerText;
+        }
+    </script>
+</body>
+</html>
